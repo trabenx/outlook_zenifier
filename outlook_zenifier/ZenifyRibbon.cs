@@ -12,6 +12,8 @@ using System.Text.Json;
 using Office = Microsoft.Office.Core;
 using Outlook = Microsoft.Office.Interop.Outlook;
 using Word = Microsoft.Office.Interop.Word;
+using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 // TODO:  Follow these steps to enable the Ribbon (XML) item:
 
@@ -39,14 +41,37 @@ namespace outlook_zenifier
     {
         private Office.IRibbonUI ribbon;
 
+        // --- START: USER CONFIGURATION ---
+        // IMPORTANT: Update these values to match your environment
+        private const string VllmApiBase = "https://our.server.com/llm/v1"; // Your OPENAI_API_BASE
+        private const string VllmApiKey = "MY_OPENAI_API_KEY"; // Your OPENAI_API_KEY
+        private const string ModelName = "llama4-scout"; // The model you want to use
+                                                         // --- END: USER CONFIGURATION ---
+
+        private static readonly HttpClient client = new HttpClient();
+        private const string ChatEndpoint = "chat/completions"; // The endpoint for Chat Completions
+
+        static ZenifyRibbon()
+        {
+            // WARNING: The following handler bypasses SSL certificate validation.
+            // This is equivalent to `verify=False` in Python's requests/httpx.
+            // ONLY use this if you trust the endpoint (e.g., it's on a private network).
+            var handler = new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
+            };
+
+            client = new HttpClient(handler);
+            client.BaseAddress = new Uri(VllmApiBase);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", VllmApiKey);
+        }
         public ZenifyRibbon()
         {
         }
 
         // Inside the ZenifyRibbon.cs class
 
-        private static readonly HttpClient client = new HttpClient();
-        private const string VllmApiEndpoint = "http://localhost:8000/v1/completions"; // CHANGE THIS if your endpoint is different
+
 
         // This is the callback specified in the XML's onAction attribute
         public async void OnZenifyButtonClick(Office.IRibbonControl control)
@@ -77,7 +102,7 @@ namespace outlook_zenifier
                     var prompt = BuildLlmPrompt(fullEmailBody, recipients, subject, selectedText);
 
                     // 5. Call the LLM and get the zenified text
-                    string zenifiedText = await CallVllmApi(prompt);
+                    string zenifiedText = await CallVllmChatApi(prompt);
 
                     if (string.IsNullOrEmpty(zenifiedText))
                     {
@@ -123,43 +148,74 @@ namespace outlook_zenifier
             return promptBuilder.ToString();
         }
 
-        private async Task<string> CallVllmApi(string prompt)
+        // The core API call, now updated for the Chat Completions API
+        private async Task<string> CallVllmChatApi(string userPrompt)
         {
-            // The vLLM OpenAI-compatible API expects a specific JSON structure
-            var requestData = new
+            // Create the request payload matching the /chat/completions format
+            var requestData = new ChatRequest
             {
-                model = "tiiuae/falcon-7b-instruct", // IMPORTANT: Change to your loaded model name
-                prompt = prompt,
-                max_tokens = 256, // Adjust as needed
-                temperature = 0.7
+                Model = ModelName,
+                Messages = new List<ChatMessage>
+                {
+                    new ChatMessage { Role = "user", Content = userPrompt }
+                },
+                MaxTokens = 256,
+                Temperature = 0.7
             };
 
-            var content = new StringContent(JsonSerializer.Serialize(requestData), Encoding.UTF8, "application/json");
+            var options = new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
+            var content = new StringContent(JsonSerializer.Serialize(requestData, options), Encoding.UTF8, "application/json");
 
-            HttpResponseMessage response = await client.PostAsync(VllmApiEndpoint, content);
+            // Post to the correct relative endpoint
+            HttpResponseMessage response = await client.PostAsync(ChatEndpoint, content);
+
+            string responseBody = await response.Content.ReadAsStringAsync();
 
             if (response.IsSuccessStatusCode)
             {
-                string responseBody = await response.Content.ReadAsStringAsync();
-
-                // Parse the JSON to get the text from the first choice
+                // Parse the new response structure
                 using (JsonDocument doc = JsonDocument.Parse(responseBody))
                 {
                     JsonElement root = doc.RootElement;
                     JsonElement choices = root.GetProperty("choices");
                     if (choices.GetArrayLength() > 0)
                     {
-                        return choices[0].GetProperty("text").GetString();
+                        // The path is now choices -> message -> content
+                        return choices[0].GetProperty("message").GetProperty("content").GetString();
                     }
                 }
                 return string.Empty;
             }
             else
             {
-                // Throw an exception with details from the API
-                string errorBody = await response.Content.ReadAsStringAsync();
-                throw new HttpRequestException($"API call failed with status code {response.StatusCode}: {errorBody}");
+                // Throw an exception with details from the API for better debugging
+                throw new HttpRequestException($"API call failed with status code {response.StatusCode}: {responseBody}");
             }
+        }
+
+        // Helper classes to model the JSON payload for the Chat API
+        public class ChatRequest
+        {
+            [JsonPropertyName("model")]
+            public string Model { get; set; }
+
+            [JsonPropertyName("messages")]
+            public List<ChatMessage> Messages { get; set; }
+
+            [JsonPropertyName("max_tokens")]
+            public int? MaxTokens { get; set; }
+
+            [JsonPropertyName("temperature")]
+            public double? Temperature { get; set; }
+        }
+
+        public class ChatMessage
+        {
+            [JsonPropertyName("role")]
+            public string Role { get; set; }
+
+            [JsonPropertyName("content")]
+            public string Content { get; set; }
         }
 
         #region IRibbonExtensibility Members
