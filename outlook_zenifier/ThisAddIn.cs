@@ -5,6 +5,7 @@ using System.Text;
 using System.Xml.Linq;
 using Outlook = Microsoft.Office.Interop.Outlook;
 using Office = Microsoft.Office.Core;
+using System.Net;
 
 namespace outlook_zenifier
 {
@@ -12,6 +13,11 @@ namespace outlook_zenifier
     {
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
         {
+            // ***************************************************************
+            // Force the .NET Framework to use modern security protocols.
+            // This is essential for connecting to servers that require TLS 1.2+
+            ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
+            // ***************************************************************
         }
 
         private void ThisAddIn_Shutdown(object sender, System.EventArgs e)
