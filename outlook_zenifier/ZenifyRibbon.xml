@@ -6,11 +6,13 @@
       <tab idMso="TabNewMailMessage">
         <group id="ZenifyGroup" label="AI Tools">
           <button id="zenifyButton"
-                  label="🧘‍♂️ Zenify"
+                  label="Zenify"
                   size="large"
                   onAction="OnZenifyButtonClick"
                   screentip="Rewrite Selection"
-                  supertip="Rewrites the selected text to be more diplomatic and professional using an AI model."/>
+                  supertip="Rewrites the selected text to be more diplomatic and professional using an AI model."
+                  image="getZenifyIcon"  
+                  showImage="true"/>
         </group>
       </tab>
     </tabs>

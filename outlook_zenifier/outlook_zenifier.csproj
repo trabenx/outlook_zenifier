@@ -271,6 +271,7 @@
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
     </Compile>
     <None Include="app.config" />
     <None Include="outlook_zenifier_TemporaryKey.pfx" />
@@ -296,6 +297,9 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="ZenifyRibbon.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\zenify_logo.png" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>

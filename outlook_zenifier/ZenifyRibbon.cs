@@ -71,6 +71,12 @@ namespace outlook_zenifier
 
         // Inside the ZenifyRibbon.cs class
 
+        public object getZenifyIcon(Office.IRibbonControl control)
+        {
+            // The name 'zenify_logo' must match the name of the image
+            // in the project's Resources (without the file extension).
+            return new System.Drawing.Bitmap(Properties.Resources.zenify_logo);
+        }
 
 
         // This is the callback specified in the XML's onAction attribute
