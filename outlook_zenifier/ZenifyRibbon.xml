@@ -11,7 +11,7 @@
                   onAction="OnZenifyButtonClick"
                   screentip="Rewrite Selection"
                   supertip="Rewrites the selected text to be more diplomatic and professional using an AI model."
-                  image="getZenifyIcon"  
+                  getImage="getZenifyIcon"  
                   showImage="true"/>
         </group>
       </tab>
