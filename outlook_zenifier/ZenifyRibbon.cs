@@ -41,12 +41,6 @@ namespace outlook_zenifier
     {
         private Office.IRibbonUI ribbon;
 
-        // --- START: USER CONFIGURATION ---
-        // IMPORTANT: Update these values to match your environment
-        private const string VllmApiBase = "https://our.server.com/llm/v1"; // Your OPENAI_API_BASE
-        private const string VllmApiKey = "MY_OPENAI_API_KEY"; // Your OPENAI_API_KEY
-        private const string ModelName = "llama4-scout"; // The model you want to use
-                                                         // --- END: USER CONFIGURATION ---
 
         private static readonly HttpClient client = new HttpClient();
         private const string ChatEndpoint = "chat/completions"; // The endpoint for Chat Completions
@@ -62,8 +56,8 @@ namespace outlook_zenifier
             };
 
             client = new HttpClient(handler);
-            client.BaseAddress = new Uri(VllmApiBase);
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", VllmApiKey);
+            client.BaseAddress = new Uri(AppConstants.VllmApiBase);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", AppConstants.VllmApiKey);
         }
         public ZenifyRibbon()
         {
@@ -82,12 +76,37 @@ namespace outlook_zenifier
         // This is the callback specified in the XML's onAction attribute
         public async void OnZenifyButtonClick(Office.IRibbonControl control)
         {
-            // 1. Get the active email composer window
+            Outlook.MailItem mailItem = null;
+            Word.Document wordEditor = null;
+
+            // Determine the context: Is it a popped-out Inspector or an inline Explorer?
             Outlook.Inspector inspector = Globals.ThisAddIn.Application.ActiveInspector();
-            if (inspector.CurrentItem is Outlook.MailItem mailItem)
+
+            if (inspector != null && inspector.CurrentItem is Outlook.MailItem)
             {
-                // 2. Get the Word editor and the user's selection
-                Word.Document wordEditor = inspector.WordEditor as Word.Document;
+                // CONTEXT 1: We are in a popped-out window (New, Reply, or Forward).
+                mailItem = inspector.CurrentItem as Outlook.MailItem;
+                wordEditor = inspector.WordEditor as Word.Document;
+            }
+            else
+            {
+                // CONTEXT 2: No active inspector. We are likely in an inline response in the main Explorer.
+                Outlook.Explorer explorer = Globals.ThisAddIn.Application.ActiveExplorer();
+                if (explorer != null && explorer.ActiveInlineResponse != null)
+                {
+                    // The ActiveInlineResponse is the MailItem being composed.
+                    mailItem = explorer.ActiveInlineResponse as Outlook.MailItem;
+                    if (mailItem != null)
+                    {
+                        // Get the Word editor from the MailItem's inspector property, which exists even if not visible.
+                        wordEditor = mailItem.GetInspector.WordEditor as Word.Document;
+                    }
+                }
+            }
+
+            // --- The rest of the logic is the same, but it's now wrapped in a null check ---
+            if (mailItem != null && wordEditor != null)
+            {
                 Word.Selection selection = wordEditor.Application.Selection;
                 string selectedText = selection.Text.Trim();
 
@@ -99,16 +118,12 @@ namespace outlook_zenifier
 
                 try
                 {
-                    // 3. Gather all required context
                     string fullEmailBody = wordEditor.Content.Text;
                     string recipients = mailItem.To;
                     string subject = mailItem.Subject;
 
-                    // 4. Construct the prompt for the LLM
-                    var prompt = BuildLlmPrompt(fullEmailBody, recipients, subject, selectedText);
-
-                    // 5. Call the LLM and get the zenified text
-                    string zenifiedText = await CallVllmChatApi(prompt);
+                    var userPrompt = BuildLlmPrompt(fullEmailBody, recipients, subject, selectedText);
+                    string zenifiedText = await CallVllmChatApi(userPrompt);
 
                     if (string.IsNullOrEmpty(zenifiedText))
                     {
@@ -116,21 +131,19 @@ namespace outlook_zenifier
                         return;
                     }
 
-                    // 6. Replace the text in the editor
-                    // Strike-through the original selection
-                    selection.Font.StrikeThrough = 1; // 1 for true in Word Interop
-
-                    // Collapse the selection to the end and insert the new text
+                    selection.Font.StrikeThrough = 1; // Strikethrough original
                     selection.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
                     selection.TypeText($" [{zenifiedText.Trim()}]");
-
-                    // Important: Un-strikethrough for subsequent typing
-                    selection.Font.StrikeThrough = 0;
+                    selection.Font.StrikeThrough = 0; // Un-strikethrough for subsequent typing
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"An error occurred: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show($"An error occurred while contacting the AI service:\n\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
+            }
+            else
+            {
+                MessageBox.Show("Could not find an active email editor. Please click inside the message body and try again.", "Editor Not Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 
@@ -160,7 +173,7 @@ namespace outlook_zenifier
             // Create the request payload matching the /chat/completions format
             var requestData = new ChatRequest
             {
-                Model = ModelName,
+                Model = AppConstants.ModelName,
                 Messages = new List<ChatMessage>
                 {
                     new ChatMessage { Role = "user", Content = userPrompt }

@@ -2,16 +2,32 @@
 <customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui" onLoad="Ribbon_Load">
   <ribbon>
     <tabs>
-      <!-- Target the ribbon for a new mail message -->
+      <!-- Target #1: The ribbon for a new, "popped-out" mail message (Inspector) -->
       <tab idMso="TabNewMailMessage">
-        <group id="ZenifyGroup" label="AI Tools">
-          <button id="zenifyButton"
+        <group id="ZenifyGroupInspector" label="AI Tools">
+          <button id="zenifyButtonInspector"
                   label="Zenify"
                   size="large"
                   onAction="OnZenifyButtonClick"
                   screentip="Rewrite Selection"
                   supertip="Rewrites the selected text to be more diplomatic and professional using an AI model."
-                  getImage="getZenifyIcon"  
+                  getImage="getZenifyIcon"
+                  showImage="true"/>
+        </group>
+      </tab>
+
+      <!-- Target #2: The ribbon for the inline reply/forward in the main window (Explorer) -->
+      <tab idMso="TabReadMessage">
+        <!-- Target the existing "Respond" group where Reply/Forward buttons live -->
+        <group idMso="GroupMailRespond">
+          <!-- Add our button to this group. It needs a new, unique ID. -->
+          <button id="zenifyButtonExplorer"
+                  label="Zenify"
+                  size="large"
+                  onAction="OnZenifyButtonClick"
+                  screentip="Rewrite Selection"
+                  supertip="Rewrites the selected text to be more diplomatic and professional using an AI model."
+                  getImage="getZenifyIcon"
                   showImage="true"/>
         </group>
       </tab>
