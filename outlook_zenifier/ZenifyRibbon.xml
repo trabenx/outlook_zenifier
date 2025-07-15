@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui" onLoad="Ribbon_Load">
+  <ribbon>
+    <tabs>
+      <!-- Target the ribbon for a new mail message -->
+      <tab idMso="TabNewMailMessage">
+        <group id="ZenifyGroup" label="AI Tools">
+          <button id="zenifyButton"
+                  label="🧘‍♂️ Zenify"
+                  size="large"
+                  onAction="OnZenifyButtonClick"
+                  screentip="Rewrite Selection"
+                  supertip="Rewrites the selected text to be more diplomatic and professional using an AI model."/>
+        </group>
+      </tab>
+    </tabs>
+  </ribbon>
+</customUI>
