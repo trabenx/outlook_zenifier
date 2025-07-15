@@ -175,10 +175,9 @@ namespace outlook_zenifier
             // Post to the correct relative endpoint
             HttpResponseMessage response = await client.PostAsync(ChatEndpoint, content);
 
-            string responseBody = await response.Content.ReadAsStringAsync();
-
             if (response.IsSuccessStatusCode)
             {
+                string responseBody = await response.Content.ReadAsStringAsync();
                 // Parse the new response structure
                 using (JsonDocument doc = JsonDocument.Parse(responseBody))
                 {
@@ -194,6 +193,7 @@ namespace outlook_zenifier
             }
             else
             {
+                string responseBody = await response.Content.ReadAsStringAsync();
                 // Throw an exception with details from the API for better debugging
                 throw new HttpRequestException($"API call failed with status code {response.StatusCode}: {responseBody}");
             }
